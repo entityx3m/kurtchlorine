@@ -1,0 +1,33 @@
+import pandas as pd
+from sklearn.tree import DecisionTreeRegressor
+from dht11 import read_dht11_sensor_data
+from test_water_level import water_distance
+
+def predict_solenoid_opening_time():
+    # Read data
+    data = pd.read_csv('/home/sinandomeng/PycharmProjects/MQTT/chlorinerevamp.csv')
+    X = data[['water_level_distance', 'temperature', 'humidity']]
+    y = data['chlorine']
+
+    # Train model
+    model = DecisionTreeRegressor()
+    model.fit(X, y)
+
+    # Read sensor data
+    water_level = water_distance()
+    temperature, humidity = read_dht11_sensor_data()
+
+    # Create new data for prediction
+    new_data = pd.DataFrame({'water_level_distance': [water_level], 'temperature': [temperature], 'humidity': [humidity]})
+
+    # Predict solenoid opening time
+    predicted_opening_time = model.predict(new_data)[0]
+
+    return water_level, temperature, humidity, predicted_opening_time
+
+# Example usage
+water_level, temperature, humidity, predicted_time = predict_solenoid_opening_time()
+print(f'Water Level: {water_level} L')
+print(f'Temperature: {temperature} °C')
+print(f'Humidity: {humidity}%')
+print(f'Predicted Solenoid Opening Time: {predicted_time} seconds')
