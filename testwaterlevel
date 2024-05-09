@@ -1,0 +1,5 @@
+import random
+
+def water_distance():
+    water = random.uniform (5, 65)
+    return water
