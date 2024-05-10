@@ -1,0 +1,64 @@
+import time
+import RPi.GPIO as GPIO
+from phsensor import read_ph_level
+from test_water_level import water_distance
+from test_flow_rate import water_flow
+from chlorineAI import predict_solenoid_opening_time
+
+last_water_level = 0
+
+RELAY_PIN = 12
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(RELAY_PIN, GPIO.OUT)
+
+
+def open_solenoid_valve(open_time_seconds):
+    GPIO.output(RELAY_PIN, GPIO.HIGH)
+    time.sleep(open_time_seconds)
+    GPIO.output(RELAY_PIN, GPIO.LOW)
+
+def main():
+    global last_water_level
+    timer_duration = 3
+    timer_start = time.time()
+    rain_detected = False
+
+    while True:
+        # Check if rainwater is pouring (using flowrate sensor)
+        if water_flow() > 0.5:
+            rain_detected = True
+            timer_start = time.time()  # Reset timer
+            print("Rainwater detected. Timer reset.")
+
+        # If rain detected and timer expired, perform AI prediction and open solenoid valve
+        if rain_detected and time.time() - timer_start >= timer_duration:
+            print("Timer expired. Performing AI prediction.")
+
+            # Read sensor data
+            water_level = water_distance()
+            ph_level = read_ph_level()
+
+            # Calculate the difference in water level since last recording
+            water_level_difference = water_level - last_water_level
+            last_water_level = water_level  # Update last recorded water level
+
+            # Perform AI prediction for solenoid opening time based on water level difference
+            water_level, ph_level, predicted_time = predict_solenoid_opening_time()  # Call function without arguments
+            print(f'Water Level: {water_level} L')
+            print(f'pH Level: {ph_level}')
+            print(f'Predicted Solenoid Opening Time: {predicted_time} seconds')
+
+            # Open solenoid valve for the predicted time
+            open_solenoid_valve(predicted_time)
+
+            # Reset rain detection and timer
+            rain_detected = False
+            timer_start = time.time()
+            print("Solenoid valve opened.")
+
+        time.sleep(1)
+
+
+if __name__ == "__main__":
+    main()
